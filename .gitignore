@@ -1,0 +1,4 @@
+.vercel
+.tools
+node_modules
+.env
