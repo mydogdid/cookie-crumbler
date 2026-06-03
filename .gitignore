@@ -2,3 +2,4 @@
 .tools
 node_modules
 .env
+supabase-hardening.sql
