@@ -27,11 +27,31 @@ const CRACKS=[
   [[[26,19],[31,25],[35,28]],[[21,25],[15,31],[12,27]],[[22,15],[25,11]],[[25,23],[28,17],[31,13]],[[23,26],[21,33],[23,38]],[[26,27],[31,33],[30,40]],[[17,18],[13,14]],[[28,24],[35,23],[38,26]],[[23,12],[21,8]],[[23,24],[10,25]],[[24,24],[25,40]],[[18,27],[22,32],[17,36]]],
 ];
 
+const PIECES=[
+  {pts:[[8,5],[19,6],[22,14],[17,22],[7,20],[3,12]],chips:[[13,11,3,2]]},
+  {pts:[[26,4],[39,8],[43,18],[34,24],[24,18]],chips:[[32,13,4,2]]},
+  {pts:[[4,24],[16,21],[22,29],[18,42],[7,39],[1,31]],chips:[[11,29,3,3]]},
+  {pts:[[26,25],[41,22],[46,31],[40,43],[28,40],[22,31]],chips:[[34,31,3,2]]},
+  {pts:[[19,14],[28,18],[30,29],[21,33],[14,27]],chips:[[22,23,3,2]]},
+  {pts:[[11,0],[22,2],[21,8],[15,13],[8,10]],chips:[[15,5,2,2]]},
+  {pts:[[20,36],[31,35],[35,45],[23,47],[16,43]],chips:[[25,40,3,2]]},
+  {pts:[[37,17],[47,19],[47,27],[40,30],[34,25]],chips:[[41,22,2,2]]}
+];
+
 function bresenham(x0,y0,x1,y1){
   const pts=[],dx=Math.abs(x1-x0),dy=Math.abs(y1-y0);
   let sx=x0<x1?1:-1,sy=y0<y1?1:-1,er=dx-dy;
   for(;;){pts.push([x0,y0]);if(x0===x1&&y0===y1)break;const e2=2*er;if(e2>-dy){er-=dy;x0+=sx;}if(e2<dx){er+=dx;y0+=sy;}}
   return pts;
+}
+
+function inPoly(x,y,pts){
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
 }
 
 function renderCookie(hp,exploded){
@@ -64,14 +84,23 @@ function renderCookie(hp,exploded){
 }
 
 function drawPieces(){
-  [[-16,-18,9],[17,-16,8],[-15,17,9],[16,17,9],[-20,1,7],[3,21,7],[21,-3,6],[-3,-21,7]].forEach(([ox,oy,r])=>{
-    const cx=CX+ox,cy=CY+oy;
-    for(let py=cy-r;py<=cy+r;py++)for(let px=cx-r;px<=cx+r;px++){
-      if(px<0||py<0||px>=INT||py>=INT)continue;
-      const dx=px-cx,dy=py-cy,d=Math.hypot(dx,dy);
-      if(d<r-2){octx.fillStyle=dx+dy<-2?P.lo:dx+dy>3?P.dk:P.mi;octx.fillRect(px,py,1,1);}
-      else if(d<r){octx.fillStyle=P.ed;octx.fillRect(px,py,1,1);}
+  PIECES.forEach(piece=>{
+    const xs=piece.pts.map(p=>p[0]),ys=piece.pts.map(p=>p[1]);
+    const minX=Math.max(0,Math.min(...xs)),maxX=Math.min(INT-1,Math.max(...xs));
+    const minY=Math.max(0,Math.min(...ys)),maxY=Math.min(INT-1,Math.max(...ys));
+    for(let py=minY;py<=maxY;py++)for(let px=minX;px<=maxX;px++){
+      if(!inPoly(px+0.5,py+0.5,piece.pts))continue;
+      const edge=piece.pts.some((p,i)=>{
+        const q=piece.pts[(i+1)%piece.pts.length];
+        return bresenham(p[0],p[1],q[0],q[1]).some(([ex,ey])=>Math.abs(ex-px)+Math.abs(ey-py)<2);
+      });
+      octx.fillStyle=edge?P.ed:(px+py<44?P.lo:px+py>58?P.dk:P.mi);
+      octx.fillRect(px,py,1,1);
     }
+    piece.chips.forEach(([cx,cy,cw,ch])=>{
+      octx.fillStyle=P.chip;octx.fillRect(cx,cy,cw,ch);
+      octx.fillStyle=P.chipH;octx.fillRect(cx,cy,cw,1);
+    });
   });
 }
 
@@ -85,6 +114,8 @@ function flush(){
 // ═══════════════════════════════════════════════════════
 const MAX_HP=500;
 let hp,clicks,clickTs,over,tStart,tInt,finalClicks=0,finalTimeMs=0;
+let soundOn=localStorage.getItem('cookieCrumbler_sound')==='on';
+let audioCtx=null;
 
 function getCPS(){
   const now=Date.now();
@@ -102,6 +133,78 @@ function fmtMM(ms){
   return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 }
 function fmtSec(ms){ return (ms/1000).toFixed(2)+'s'; }
+
+function updateSoundButton(){
+  const btn=document.getElementById('btnSound');
+  btn.classList.toggle('active',soundOn);
+  btn.setAttribute('aria-label',soundOn?'Sound on':'Sound off');
+  btn.title=soundOn?'Sound on':'Sound off';
+}
+
+function getAudio(){
+  if(!soundOn)return null;
+  const AudioApi=window.AudioContext||window.webkitAudioContext;
+  if(!AudioApi)return null;
+  audioCtx=audioCtx||new AudioApi();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(freq,duration,type='square',gain=0.035){
+  const ctx=getAudio();
+  if(!ctx)return;
+  const osc=ctx.createOscillator();
+  const vol=ctx.createGain();
+  osc.type=type;osc.frequency.value=freq;
+  vol.gain.setValueAtTime(gain,ctx.currentTime);
+  vol.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+duration);
+  osc.connect(vol);vol.connect(ctx.destination);
+  osc.start();osc.stop(ctx.currentTime+duration);
+}
+
+function playNoise(duration,filterFreq,gain=0.035){
+  const ctx=getAudio();
+  if(!ctx)return;
+  const length=Math.max(1,Math.floor(ctx.sampleRate*duration));
+  const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
+  const data=buffer.getChannelData(0);
+  for(let i=0;i<length;i++){
+    const fade=1-i/length;
+    data[i]=(Math.random()*2-1)*fade*fade;
+  }
+  const src=ctx.createBufferSource();
+  const filter=ctx.createBiquadFilter();
+  const vol=ctx.createGain();
+  src.buffer=buffer;
+  filter.type='bandpass';
+  filter.frequency.value=filterFreq;
+  filter.Q.value=1.8;
+  vol.gain.setValueAtTime(gain,ctx.currentTime);
+  vol.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+duration);
+  src.connect(filter);filter.connect(vol);vol.connect(ctx.destination);
+  src.start();src.stop(ctx.currentTime+duration);
+}
+
+function playClickSound(mult,hpPct){
+  let crunch=900,tone=150,gain=0.018;
+  if(hpPct<0.75){crunch=1150;tone=180;gain=0.021;}
+  if(hpPct<0.50){crunch=1450;tone=220;gain=0.025;}
+  if(hpPct<0.25){crunch=1850;tone=280;gain=0.030;}
+  if(hpPct<0.10){crunch=2300;tone=360;gain=0.036;}
+  if(mult>=4){crunch+=350;tone+=70;gain+=0.006;}
+  playNoise(0.045,crunch,gain);
+  playTone(tone,0.028,'triangle',gain*0.55);
+  if(hpPct<0.15)playNoise(0.032,crunch*1.35,gain*0.65);
+}
+
+function playCrumbleSound(){
+  [2200,1650,1200,850,620].forEach((freq,i)=>setTimeout(()=>playNoise(0.085,freq,0.050-i*0.006),i*42));
+  [180,130,95].forEach((freq,i)=>setTimeout(()=>playTone(freq,0.10,'triangle',0.028),i*55));
+}
+
+function buzz(ms){
+  if(navigator.vibrate)navigator.vibrate(ms);
+}
 
 // ═══════════════════════════════════════════════════════
 // NAME VALIDATION
@@ -225,7 +328,9 @@ async function refreshLeaderboard(){
 // ═══════════════════════════════════════════════════════
 // CLICK HANDLER
 // ═══════════════════════════════════════════════════════
-mainC.addEventListener('click',e=>{
+mainC.addEventListener('pointerdown',e=>{
+  if(e.button!==undefined&&e.button!==0)return;
+  e.preventDefault();
   if(over)return;
   const rect=mainC.getBoundingClientRect();
   const sx=DISP/rect.width,sy=DISP/rect.height;
@@ -246,6 +351,8 @@ mainC.addEventListener('click',e=>{
   clickTs.push(Date.now()); clicks++;
   const cps=getCPS(),mult=getMult(cps),dmg=Math.max(1,Math.ceil(mult));
   hp=Math.max(0,hp-dmg);
+  playClickSound(mult,hp/MAX_HP);
+  if(mult>=4)buzz(8);
 
   refreshStats(cps,mult);
   spawnFloat(e.clientX-rect.left,e.clientY-rect.top,dmg,mult);
@@ -256,7 +363,7 @@ mainC.addEventListener('click',e=>{
 
   if(hp<=0)endGame();
   else{renderCookie(hp,false);if(hp/MAX_HP<0.2)shake();}
-});
+},{passive:false});
 
 function refreshStats(cps,mult){
   document.getElementById('sClicks').textContent=String(clicks).padStart(4,'0');
@@ -310,6 +417,8 @@ async function endGame(){
   over=true;clearInterval(tInt);
   finalTimeMs=tStart?Date.now()-tStart:0;
   finalClicks=clicks;
+  playCrumbleSound();
+  buzz([20,35,20]);
 
   renderCookie(0,true);
   document.getElementById('hpFill').style.width='0%';
@@ -318,13 +427,21 @@ async function endGame(){
   document.getElementById('rClicks').textContent=String(finalClicks).padStart(4,'0');
   document.getElementById('rTime').textContent=fmtSec(finalTimeMs);
 
-  const isNew=await wouldBeRecord(finalClicks);
+  let isNew=false;
+  try{
+    isNew=await wouldBeRecord(finalClicks);
+  }catch{
+    isNew=false;
+  }
   document.getElementById('newRecMsg').classList.toggle('is-hidden',!isNew);
 
   const inp=document.getElementById('nameInput');
   inp.value=localStorage.getItem('cookieCrumbler_lastName')||'';
-  document.getElementById('overlay').classList.add('show');
-  setTimeout(()=>inp.focus(),380);
+  const overlay=document.getElementById('overlay');
+  overlay.classList.remove('ready');
+  overlay.classList.add('show');
+  setTimeout(()=>overlay.classList.add('ready'),650);
+  setTimeout(()=>inp.focus(),700);
 }
 
 async function submitScore(){
@@ -357,6 +474,7 @@ function skipAndReset(){ closeOverlayAndReset(); }
 
 function closeOverlayAndReset(){
   document.getElementById('overlay').classList.remove('show');
+  document.getElementById('overlay').classList.remove('ready');
   resetGame();
 }
 
@@ -375,6 +493,24 @@ document.getElementById('lbPrev').addEventListener('click',()=>lbPage(-1));
 document.getElementById('lbNext').addEventListener('click',()=>lbPage(1));
 document.getElementById('btnSubmit').addEventListener('click',submitScore);
 document.querySelector('.btn-skip').addEventListener('click',skipAndReset);
+document.getElementById('btnSound').addEventListener('click',()=>{
+  soundOn=!soundOn;
+  localStorage.setItem('cookieCrumbler_sound',soundOn?'on':'off');
+  updateSoundButton();
+  if(soundOn)playTone(520,0.06,'square',0.03);
+});
+document.getElementById('btnHelp').addEventListener('click',()=>{
+  document.getElementById('helpPopover').classList.remove('is-hidden');
+});
+document.getElementById('btnHelpClose').addEventListener('click',()=>{
+  document.getElementById('helpPopover').classList.add('is-hidden');
+});
+document.getElementById('helpPopover').addEventListener('click',e=>{
+  if(e.target.id==='helpPopover')e.currentTarget.classList.add('is-hidden');
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')document.getElementById('helpPopover').classList.add('is-hidden');
+});
 
 function resetGame(){
   hp=MAX_HP;clicks=0;clickTs=[];over=false;tStart=null;
@@ -391,6 +527,7 @@ function resetGame(){
   document.getElementById('tip').className='tip';
   document.getElementById('tip').style.color='#C878F0';
   document.getElementById('overlay').classList.remove('show');
+  document.getElementById('overlay').classList.remove('ready');
   document.getElementById('btnRestart').classList.add('is-hidden');
   renderCookie(hp,false);
 }
@@ -411,5 +548,6 @@ setInterval(()=>{
 
 // ── Init ──────────────────────────────────────────────
 hp=MAX_HP;clicks=0;clickTs=[];over=false;tStart=null;tInt=null;
+updateSoundButton();
 refreshLeaderboard();
 renderCookie(hp,false);

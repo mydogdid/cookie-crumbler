@@ -17,7 +17,7 @@
 }
 
 html { color-scheme: only light; }
-html, body { width:100%; min-height:100vh; }
+html, body { width:100%; min-height:100vh; overscroll-behavior:none; }
 
 body {
   background: linear-gradient(145deg, #FFE4F8 0%, #EDD8FF 45%, #D8ECFF 100%);
@@ -30,6 +30,9 @@ body {
   color: var(--text);
   image-rendering: pixelated;
   min-height: 100vh;
+  -webkit-text-size-adjust: 100%;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 body::before {
@@ -58,6 +61,44 @@ body::before {
   letter-spacing: 1px;
   margin-bottom: 18px;
   z-index: 1;
+}
+
+.top-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  z-index: 1;
+}
+
+.icon-btn,
+.help-close {
+  font-family: 'Press Start 2P', monospace;
+  display: grid;
+  place-items: center;
+  background: #FFF0FF;
+  color: var(--texthi);
+  border: 3px solid var(--border2);
+  box-shadow: 3px 3px 0 var(--border2);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 38px;
+  font-size: 15px;
+}
+
+.icon-btn.active {
+  background: #FFD8F0;
+  color: #FF3080;
+  text-shadow: 1px 1px 0 #FFD0E8;
+}
+
+.icon-btn:active,
+.help-close:active {
+  transform: translate(2px,2px);
+  box-shadow: 1px 1px 0 var(--border2);
 }
 
 /* ── Stats grid ────────────────────────────────────────── */
@@ -96,6 +137,9 @@ body::before {
   image-rendering: crisp-edges;
   border: 4px solid var(--border2);
   box-shadow: 6px 6px 0 var(--border2);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ── Health bar ────────────────────────────────────────── */
@@ -259,12 +303,21 @@ body::before {
 .overlay {
   display: none;
   position: fixed; inset:0;
-  background: rgba(160,110,220,0.70);
+  background: rgba(160,110,220,0.46);
   align-items: center;
   justify-content: center;
+  padding: 28px 16px 42vh;
   z-index: 200;
 }
 .overlay.show { display:flex; }
+.overlay.show:not(.ready) .res-btns {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.overlay.show:not(.ready) .name-input {
+  pointer-events: none;
+}
 
 .result-box {
   background: var(--panel);
@@ -275,6 +328,7 @@ body::before {
   max-width: 380px;
   width: 92%;
   animation: popIn 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
+  margin-top: 0;
 }
 
 @keyframes popIn { from{transform:scale(0.4);opacity:0;} to{transform:scale(1);opacity:1;} }
@@ -351,3 +405,128 @@ body::before {
   transition: transform 0.05s, box-shadow 0.05s;
 }
 .btn-skip:active { transform:translate(2px,2px); box-shadow:2px 2px 0 var(--border2); }
+
+/* ── Help popover ─────────────────────────────────────── */
+.help-popover {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(160,110,220,0.62);
+  z-index: 220;
+  padding: 18px;
+}
+
+.help-box {
+  position: relative;
+  width: min(340px, 92vw);
+  background: var(--panel);
+  border: 5px solid var(--border2);
+  box-shadow: 7px 7px 0 #7838B8;
+  padding: 24px 18px 18px;
+  text-align: center;
+}
+
+.help-close {
+  position: absolute;
+  top: -16px;
+  right: -14px;
+  width: 34px;
+  height: 34px;
+  font-size: 14px;
+}
+
+.help-title {
+  font-size: 17px;
+  color: var(--pink);
+  text-shadow: 4px 4px 0 #B050A0, 2px 2px 0 #D87EC0;
+  letter-spacing: 2px;
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.help-list {
+  display: grid;
+  gap: 10px;
+}
+
+.help-list p {
+  font-size: 8px;
+  line-height: 1.8;
+  color: #3E245F;
+  text-shadow: 1px 1px 0 #FFFFFF, 2px 2px 0 #E8C8FF;
+  letter-spacing: 1px;
+  background: #FFF0FF;
+  border: 2px solid var(--border);
+  padding: 9px 8px;
+}
+
+button,
+input {
+  touch-action: manipulation;
+}
+
+@media (max-width: 430px) {
+  body {
+    justify-content: flex-start;
+    padding: 1rem 0.75rem 1.5rem;
+  }
+
+  .title {
+    font-size: 17px;
+    line-height: 1.35;
+    text-shadow: 3px 3px 0 #B050A0, 1px 1px 0 #D87EC0;
+  }
+
+  .subtitle {
+    font-size: 8px;
+    margin-bottom: 12px;
+  }
+
+  .stats,
+  .hp-wrap,
+  .records {
+    width: min(100%, 340px);
+  }
+
+  .cookie-wrap {
+    margin-top: 2px;
+  }
+
+  #c {
+    width: min(78vw, 320px);
+    height: min(78vw, 320px);
+  }
+
+  .stat-cell {
+    min-height: 55px;
+  }
+
+  .stat-lbl {
+    font-size: 7px;
+  }
+
+  .stat-val {
+    font-size: 13px;
+  }
+
+  .lb-header,
+  .lb-row {
+    grid-template-columns: 24px 1fr 58px 64px;
+  }
+
+  .name-input {
+    font-size: 16px;
+  }
+
+  .overlay {
+    align-items: flex-start;
+    padding: 18px 12px 0;
+  }
+
+  .result-box {
+    width: min(360px, 94vw);
+    padding: 22px 18px 18px;
+  }
+}

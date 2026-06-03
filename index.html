@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="only light">
+<meta name="theme-color" content="#FFE4F8">
 <meta name="description" content="Cookie Crumbler is a tiny pixel-art browser game where you click a giant cookie until it crumbles and submit your score to a global leaderboard.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://cookiecrumbler.lol/">
@@ -11,14 +12,19 @@
 
 <!-- Open Graph / Discord / Slack / WhatsApp preview -->
 <meta property="og:type"        content="website" />
+<meta property="og:site_name"   content="Cookie Crumbler" />
 <meta property="og:url"         content="https://cookiecrumbler.lol/" />
 <meta property="og:title"       content="Cookie Crumbler - Pixel Cookie Clicking Game" />
 <meta property="og:description" content="Click a giant pixel-art cookie until it crumbles, then submit your score to the global leaderboard." />
 <meta property="og:image"       content="https://cookiecrumbler.lol/preview.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt"   content="Cookie Crumbler pixel-art cookie game preview" />
 <meta name="twitter:card"        content="summary_large_image" />
 <meta name="twitter:title"       content="Cookie Crumbler - Pixel Cookie Clicking Game" />
 <meta name="twitter:description" content="Click a giant pixel-art cookie until it crumbles, then submit your score to the global leaderboard." />
 <meta name="twitter:image"       content="https://cookiecrumbler.lol/preview.png" />
+<meta name="twitter:image:alt"   content="Cookie Crumbler pixel-art cookie game preview" />
 
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
@@ -28,6 +34,11 @@
 
 <div class="title">✿ COOKIE CRUMBLER ✿</div>
 <p class="subtitle">~ click faster = more damage! ~</p>
+
+<div class="top-controls" aria-label="Game options">
+  <button class="icon-btn" id="btnHelp" type="button" aria-label="How to play" title="How to play">?</button>
+  <button class="icon-btn" id="btnSound" type="button" aria-label="Sound off" title="Sound">♪</button>
+</div>
 
 <div class="stats">
   <div class="stat-cell"><span class="stat-lbl">🍪 CLICKS</span><span class="stat-val" id="sClicks">0000</span></div>
@@ -76,6 +87,19 @@
     <div class="res-btns">
       <button class="btn-submit" id="btnSubmit">SUBMIT</button>
       <button class="btn-skip">SKIP</button>
+    </div>
+  </div>
+</div>
+
+<div class="help-popover is-hidden" id="helpPopover" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="help-box">
+    <button class="help-close" id="btnHelpClose" type="button" aria-label="Close how to play">×</button>
+    <div class="help-title" id="helpTitle">HOW TO PLAY</div>
+    <div class="help-list">
+      <p>CLICK THE COOKIE UNTIL IT CRUMBLES.</p>
+      <p>FASTER CLICKS RAISE DAMAGE.</p>
+      <p>LOWER CLICKS AND TIME WIN.</p>
+      <p>SUBMIT 8 LETTERS MAX.</p>
     </div>
   </div>
 </div>
