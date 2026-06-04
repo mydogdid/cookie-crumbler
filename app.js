@@ -125,7 +125,8 @@ function getCPS(){
 
 function getMult(cps){
   if(cps<3)return 1; if(cps<4)return 1.5;
-  if(cps<6)return 2.5; if(cps<8)return 4; return 6;
+  if(cps<6)return 2.5; if(cps<8)return 4;
+  if(cps<10)return 6; return 8;
 }
 
 function fmtMM(ms){
@@ -356,7 +357,7 @@ mainC.addEventListener('pointerdown',e=>{
 
   refreshStats(cps,mult);
   spawnFloat(e.clientX-rect.left,e.clientY-rect.top,dmg,mult);
-  if(mult>=4)spawnSparks(e.clientX-rect.left,e.clientY-rect.top,mult>=6?8:5);
+  if(mult>=4)spawnSparks(e.clientX-rect.left,e.clientY-rect.top,mult>=8?12:mult>=6?8:5);
 
   document.getElementById('hpFill').style.width=(hp/MAX_HP*100)+'%';
   document.getElementById('hpPct').textContent=Math.ceil(hp/MAX_HP*100)+'%';
@@ -372,7 +373,8 @@ function refreshStats(cps,mult){
   el.textContent='×'+mult.toFixed(1);
   el.classList.toggle('hot',mult>1);
   const tip=document.getElementById('tip');
-  if(mult>=6){tip.textContent='🔥 FRENZY! ×6 DAMAGE! 🔥';tip.className='tip blink';tip.style.color='#FF3080';}
+  if(mult>=8){tip.textContent='★ CRUMBLE RUSH! ×8 DAMAGE! ★';tip.className='tip blink';tip.style.color='#FF2068';}
+  else if(mult>=6){tip.textContent='🔥 FRENZY! ×6 DAMAGE! 🔥';tip.className='tip blink';tip.style.color='#FF3080';}
   else if(mult>=4){tip.textContent='⚡⚡ TURBO! ×4 damage!';tip.className='tip';tip.style.color='#FF6090';}
   else if(mult>=2.5){tip.textContent='⚡ fast clicks! ×2.5!';tip.className='tip';tip.style.color='#FF80A8';}
   else if(mult>1){tip.textContent='keep clicking faster!';tip.className='tip';tip.style.color='#C878F0';}
