@@ -116,7 +116,7 @@ async function getScores(req, res) {
   const rows = await sql`
     select name, clicks, time_ms
     from public.scores
-    order by clicks asc, time_ms asc
+    order by time_ms asc, clicks asc
     limit ${MAX_SCORES}
   `;
   send(res, 200, { scores: rows });

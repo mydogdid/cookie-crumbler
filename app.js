@@ -258,9 +258,13 @@ async function addScore(name,clicks,timeMs,gameToken){
   if(!res.ok) throw new Error('score save failed');
 }
 
-async function wouldBeRecord(c){
+async function wouldBeRecord(timeMs,clickCount){
   const scores=await getScores();
-  return scores.length===0||c<scores[0].clicks;
+  if(scores.length===0)return true;
+  const best=scores[0];
+  const bestTime=Number(best.time_ms)||Infinity;
+  const bestClicks=Number(best.clicks)||Infinity;
+  return timeMs<bestTime||(timeMs===bestTime&&clickCount<bestClicks);
 }
 
 function lbPage(delta){
@@ -309,7 +313,7 @@ async function refreshLeaderboard(){
         time.className='lb-time';
         time.textContent=fmtSec(Number(s.time_ms)||0);
 
-        row.append(rank,name,score,time);
+        row.append(rank,name,time,score);
         lb.appendChild(row);
       });
     }
@@ -431,7 +435,7 @@ async function endGame(){
 
   let isNew=false;
   try{
-    isNew=await wouldBeRecord(finalClicks);
+    isNew=await wouldBeRecord(finalTimeMs,finalClicks);
   }catch{
     isNew=false;
   }
