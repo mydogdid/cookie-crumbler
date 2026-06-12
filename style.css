@@ -378,6 +378,8 @@ body::before {
 
 .name-error { font-size:7px; color:#FF3060; letter-spacing:0.5px; margin-top:6px; display:none; animation:blinkAnim 0.5s steps(1) infinite; }
 .name-error.show { display:block; }
+.submit-error { font-size:7px; color:#FF3060; letter-spacing:0.5px; line-height:1.6; margin-top:8px; display:none; }
+.submit-error.show { display:block; }
 
 /* ── Overlay buttons ───────────────────────────────────── */
 .res-btns { display:flex; gap:10px; justify-content:center; }

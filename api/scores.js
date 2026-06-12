@@ -130,6 +130,13 @@ async function addScore(req, res) {
 
   const validation = validateScore(req.body);
   if (validation.error) {
+    const body = typeof req.body === 'object' && req.body ? req.body : {};
+    console.warn('Rejected score submission', {
+      error: validation.error,
+      name: body.name,
+      clicks: body.clicks,
+      time_ms: body.time_ms
+    });
     send(res, 400, { error: validation.error });
     return;
   }

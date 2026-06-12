@@ -255,7 +255,39 @@ async function addScore(name,clicks,timeMs,gameToken){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name,clicks,time_ms:timeMs,game_token:gameToken})
   });
-  if(!res.ok) throw new Error('score save failed');
+  if(!res.ok){
+    let message='score save failed';
+    try{
+      const data=await res.json();
+      if(data&&data.error)message=data.error;
+    }catch{}
+    throw new Error(message);
+  }
+}
+
+function clearGameSession(){
+  gameToken=null;
+  gameTokenPromise=null;
+}
+
+function isSessionError(error){
+  return /game session/i.test(error?.message||'');
+}
+
+function setSubmitError(message){
+  const el=document.getElementById('submitError');
+  el.textContent=message||'';
+  el.classList.toggle('show',!!message);
+}
+
+async function saveScoreWithSession(name,clicks,timeMs){
+  try{
+    await addScore(name,clicks,timeMs,await startGameSession());
+  }catch(error){
+    if(!isSessionError(error))throw error;
+    clearGameSession();
+    await addScore(name,clicks,timeMs,await startGameSession());
+  }
 }
 
 async function wouldBeRecord(timeMs,clickCount){
@@ -451,6 +483,7 @@ async function endGame(){
 }
 
 async function submitScore(){
+  setSubmitError('');
   const name=document.getElementById('nameInput').value;
   if(!isValidName(name)){
     document.getElementById('nameInput').classList.add('invalid');
@@ -465,20 +498,20 @@ async function submitScore(){
   btn.textContent='SAVING...';btn.disabled=true;
 
   try{
-    const token=await startGameSession();
-    await addScore(savedName,finalClicks,finalTimeMs,token);
+    await saveScoreWithSession(savedName,finalClicks,finalTimeMs);
     await refreshLeaderboard();
-  }catch{
-    // save failed silently — still close overlay
+    closeOverlayAndReset();
+  }catch(error){
+    setSubmitError(error?.message||'could not save score');
+    btn.textContent='SUBMIT';btn.disabled=false;
+    return;
   }
-
-  btn.textContent='SUBMIT';btn.disabled=false;
-  closeOverlayAndReset();
 }
 
 function skipAndReset(){ closeOverlayAndReset(); }
 
 function closeOverlayAndReset(){
+  setSubmitError('');
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('overlay').classList.remove('ready');
   resetGame();
@@ -520,7 +553,7 @@ document.addEventListener('keydown',e=>{
 
 function resetGame(){
   hp=MAX_HP;clicks=0;clickTs=[];over=false;tStart=null;
-  gameToken=null;gameTokenPromise=null;
+  clearGameSession();
   clearInterval(tInt);tInt=null;
   document.getElementById('sClicks').textContent='0000';
   document.getElementById('sTime').textContent='00:00';
