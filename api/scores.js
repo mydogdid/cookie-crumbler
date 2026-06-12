@@ -21,6 +21,11 @@ const sql = process.env.SUPABASE_DB_URL
   ? postgres(process.env.SUPABASE_DB_URL, { max: 1, ssl: 'require' })
   : null;
 
+function isRealisticRateConstraintError(error) {
+  return error?.constraint_name === 'scores_realistic_rate_check'
+    || error?.constraint === 'scores_realistic_rate_check';
+}
+
 function normalizeStr(value) {
   return String(value).toLowerCase()
     .replace(/1/g, 'i').replace(/0/g, 'o').replace(/3/g, 'e')
@@ -141,10 +146,22 @@ async function addScore(req, res) {
     return;
   }
 
-  await sql`
-    insert into public.scores (name, clicks, time_ms)
-    values (${validation.score.name}, ${validation.score.clicks}, ${validation.score.timeMs})
-  `;
+  try {
+    await sql`
+      insert into public.scores (name, clicks, time_ms)
+      values (${validation.score.name}, ${validation.score.clicks}, ${validation.score.timeMs})
+    `;
+  } catch (error) {
+    if (isRealisticRateConstraintError(error)) {
+      console.warn('Database rejected score rate', {
+        clicks: validation.score.clicks,
+        time_ms: validation.score.timeMs
+      });
+      send(res, 400, { error: 'Score is not realistic' });
+      return;
+    }
+    throw error;
+  }
   send(res, 201, { ok: true });
 }
 
@@ -168,6 +185,12 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST');
     send(res, 405, { error: 'Method not allowed' });
   } catch (error) {
+    console.error('Scores API failed', {
+      message: error?.message,
+      code: error?.code,
+      constraint: error?.constraint,
+      constraint_name: error?.constraint_name
+    });
     send(res, 500, { error: 'Server error' });
   }
 }
