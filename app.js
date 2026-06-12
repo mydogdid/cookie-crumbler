@@ -280,6 +280,12 @@ function setSubmitError(message){
   el.classList.toggle('show',!!message);
 }
 
+function resetSubmitButton(){
+  const btn=document.getElementById('btnSubmit');
+  btn.textContent='SUBMIT';
+  btn.disabled=false;
+}
+
 async function saveScoreWithSession(name,clicks,timeMs){
   try{
     await addScore(name,clicks,timeMs,await startGameSession());
@@ -468,6 +474,8 @@ async function endGame(){
     isNew=false;
   }
   document.getElementById('newRecMsg').classList.toggle('is-hidden',!isNew);
+  resetSubmitButton();
+  setSubmitError('');
 
   const inp=document.getElementById('nameInput');
   inp.value=localStorage.getItem('cookieCrumbler_lastName')||'';
@@ -480,6 +488,9 @@ async function endGame(){
 
 async function submitScore(){
   setSubmitError('');
+  const btn=document.getElementById('btnSubmit');
+  if(btn.disabled)return;
+
   const name=document.getElementById('nameInput').value;
   if(!isValidName(name)){
     document.getElementById('nameInput').classList.add('invalid');
@@ -490,7 +501,6 @@ async function submitScore(){
   const savedName=cleanName(name);
   localStorage.setItem('cookieCrumbler_lastName',savedName);
 
-  const btn=document.getElementById('btnSubmit');
   btn.textContent='SAVING...';btn.disabled=true;
 
   try{
@@ -499,7 +509,7 @@ async function submitScore(){
     closeOverlayAndReset();
   }catch(error){
     setSubmitError(error?.message||'could not save score');
-    btn.textContent='SUBMIT';btn.disabled=false;
+    resetSubmitButton();
     return;
   }
 }
@@ -508,6 +518,7 @@ function skipAndReset(){ closeOverlayAndReset(); }
 
 function closeOverlayAndReset(){
   setSubmitError('');
+  resetSubmitButton();
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('overlay').classList.remove('ready');
   resetGame();
