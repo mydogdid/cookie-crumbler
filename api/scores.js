@@ -39,6 +39,12 @@ function isClean(name) {
   return !BANNED.some((word) => norm.includes(word));
 }
 
+function isBetterScore(score, current) {
+  if (!current) return true;
+  if (score.timeMs !== current.time_ms) return score.timeMs < current.time_ms;
+  return score.clicks < current.clicks;
+}
+
 function send(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -151,7 +157,20 @@ async function addScore(req, res) {
   }
 
   try {
-    await sql.begin(async (tx) => {
+    const saved = await sql.begin(async (tx) => {
+      const existingRows = await tx`
+        select clicks, time_ms
+        from public.scores
+        where name = ${validation.score.name}
+        order by time_ms asc, clicks asc
+        for update
+      `;
+      const currentBest = existingRows[0];
+
+      if (!isBetterScore(validation.score, currentBest)) {
+        return false;
+      }
+
       await tx`
         delete from public.scores
         where name = ${validation.score.name}
@@ -160,7 +179,13 @@ async function addScore(req, res) {
         insert into public.scores (name, clicks, time_ms)
         values (${validation.score.name}, ${validation.score.clicks}, ${validation.score.timeMs})
       `;
+      return true;
     });
+
+    if (!saved) {
+      send(res, 200, { ok: true, kept: true });
+      return;
+    }
   } catch (error) {
     if (isRealisticRateConstraintError(error)) {
       console.warn('Database rejected score rate', {
