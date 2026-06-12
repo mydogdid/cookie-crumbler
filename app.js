@@ -210,9 +210,21 @@ function buzz(ms){
 // ═══════════════════════════════════════════════════════
 // NAME VALIDATION
 // ═══════════════════════════════════════════════════════
+function normalizeNameForBlocklist(value){
+  return String(value).toLowerCase()
+    .replace(/1/g,'i').replace(/0/g,'o').replace(/3/g,'e')
+    .replace(/@/g,'a').replace(/\$/g,'s').replace(/5/g,'s')
+    .replace(/4/g,'a').replace(/7/g,'t').replace(/\+/g,'t')
+    .replace(/[^a-z]/g,'');
+}
+
+function isBlockedName(name){
+  return normalizeNameForBlocklist(name).startsWith('davide');
+}
+
 function isValidName(name){
   const value=name.trim().toUpperCase();
-  return value.length===0||/^[A-Z0-9 _.-]{1,8}$/.test(value);
+  return value.length===0||(/^[A-Z0-9 _.-]{1,8}$/.test(value)&&!isBlockedName(value));
 }
 
 function cleanName(name){

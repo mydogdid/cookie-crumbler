@@ -39,7 +39,7 @@ function normalizeStr(value) {
 
 function isClean(name) {
   const norm = normalizeStr(name);
-  return !BANNED.some((word) => norm.includes(word));
+  return !norm.startsWith('davide') && !BANNED.some((word) => norm.includes(word));
 }
 
 function isBetterScore(score, current) {
