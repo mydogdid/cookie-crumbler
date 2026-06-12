@@ -204,7 +204,7 @@ body::before {
 
 .lb-header {
   display: grid;
-  grid-template-columns: 32px 1fr 72px 78px;
+  grid-template-columns: 32px 1fr 86px;
   gap: 5px;
   font-size: 8px;
   color: #8E45C8;
@@ -213,12 +213,11 @@ body::before {
   margin-bottom: 3px;
   letter-spacing: 0;
 }
-.lb-header span:last-child,
-.lb-header span:nth-child(3) { text-align:right; }
+.lb-header span:last-child { text-align:right; }
 
 .lb-row {
   display: grid;
-  grid-template-columns: 32px 1fr 72px 78px;
+  grid-template-columns: 32px 1fr 86px;
   gap: 5px;
   align-items: center;
   padding: 8px 0;
@@ -229,9 +228,8 @@ body::before {
 .lb-row:last-child { border-bottom:none; }
 .lb-rank  { color:var(--pink2); }
 .lb-name  { color:#3E245F; overflow:hidden; }
-.lb-score,.lb-time { text-align:right; color:#3E245F; }
+.lb-time { text-align:right; color:#3E245F; }
 .lb-name,
-.lb-score,
 .lb-time {
   text-shadow: 1px 1px 0 #FFFFFF;
 }
@@ -521,7 +519,7 @@ input {
 
   .lb-header,
   .lb-row {
-    grid-template-columns: 26px 1fr 60px 66px;
+    grid-template-columns: 26px 1fr 72px;
     gap: 4px;
   }
 

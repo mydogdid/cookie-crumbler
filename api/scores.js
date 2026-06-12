@@ -120,7 +120,11 @@ function validateScore(body) {
 async function getScores(req, res) {
   const rows = await sql`
     select name, clicks, time_ms
-    from public.scores
+    from (
+      select distinct on (name) name, clicks, time_ms
+      from public.scores
+      order by name, time_ms asc, clicks asc
+    ) best_by_name
     order by time_ms asc, clicks asc
     limit ${MAX_SCORES}
   `;
@@ -147,10 +151,16 @@ async function addScore(req, res) {
   }
 
   try {
-    await sql`
-      insert into public.scores (name, clicks, time_ms)
-      values (${validation.score.name}, ${validation.score.clicks}, ${validation.score.timeMs})
-    `;
+    await sql.begin(async (tx) => {
+      await tx`
+        delete from public.scores
+        where name = ${validation.score.name}
+      `;
+      await tx`
+        insert into public.scores (name, clicks, time_ms)
+        values (${validation.score.name}, ${validation.score.clicks}, ${validation.score.timeMs})
+      `;
+    });
   } catch (error) {
     if (isRealisticRateConstraintError(error)) {
       console.warn('Database rejected score rate', {

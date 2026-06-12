@@ -337,15 +337,11 @@ async function refreshLeaderboard(){
         name.className='lb-name';
         name.textContent=String(s.name||'ANON').slice(0,8);
 
-        const score=document.createElement('span');
-        score.className='lb-score';
-        score.textContent=String(Number(s.clicks)||0).padStart(4,'0');
-
         const time=document.createElement('span');
         time.className='lb-time';
         time.textContent=fmtSec(Number(s.time_ms)||0);
 
-        row.append(rank,name,time,score);
+        row.append(rank,name,time);
         lb.appendChild(row);
       });
     }
