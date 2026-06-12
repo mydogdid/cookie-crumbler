@@ -4,6 +4,7 @@ import { verifyGameToken } from './session-token.js';
 const MAX_SCORES = 1500;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 5;
+const MIN_REALISTIC_TIME_MS = 700;
 const SCORE_SUBMIT_GRACE_MS = 5000;
 const MAX_FINISHED_WAIT_MS = 2 * 60 * 1000;
 const recentSubmissions = new Map();
@@ -21,9 +22,11 @@ const sql = process.env.SUPABASE_DB_URL
   ? postgres(process.env.SUPABASE_DB_URL, { max: 1, ssl: 'require' })
   : null;
 
-function isRealisticRateConstraintError(error) {
+function isScoreRealismConstraintError(error) {
   return error?.constraint_name === 'scores_realistic_rate_check'
-    || error?.constraint === 'scores_realistic_rate_check';
+    || error?.constraint === 'scores_realistic_rate_check'
+    || error?.constraint_name === 'scores_time_ms_range_check'
+    || error?.constraint === 'scores_time_ms_range_check';
 }
 
 function normalizeStr(value) {
@@ -98,11 +101,11 @@ function validateScore(body) {
     return { error: 'Invalid clicks' };
   }
 
-  if (!Number.isInteger(timeMs) || timeMs < 1000 || timeMs > 10 * 60 * 1000) {
+  if (!Number.isInteger(timeMs) || timeMs > 10 * 60 * 1000) {
     return { error: 'Invalid time' };
   }
 
-  if (clicks / (timeMs / 1000) > 50) {
+  if (timeMs < MIN_REALISTIC_TIME_MS) {
     return { error: 'Score is not realistic' };
   }
 
@@ -187,8 +190,8 @@ async function addScore(req, res) {
       return;
     }
   } catch (error) {
-    if (isRealisticRateConstraintError(error)) {
-      console.warn('Database rejected score rate', {
+    if (isScoreRealismConstraintError(error)) {
+      console.warn('Database rejected score realism', {
         clicks: validation.score.clicks,
         time_ms: validation.score.timeMs
       });

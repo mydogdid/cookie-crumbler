@@ -464,7 +464,6 @@ async function endGame(){
   document.getElementById('hpFill').style.width='0%';
   document.getElementById('hpPct').textContent='0%';
   document.getElementById('sTime').textContent=fmtMM(finalTimeMs);
-  document.getElementById('rClicks').textContent=String(finalClicks).padStart(4,'0');
   document.getElementById('rTime').textContent=fmtSec(finalTimeMs);
 
   let isNew=false;
