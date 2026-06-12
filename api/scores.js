@@ -91,7 +91,7 @@ function validateScore(body) {
     return { error: 'Invalid time' };
   }
 
-  if (clicks / (timeMs / 1000) > 30) {
+  if (clicks / (timeMs / 1000) > 50) {
     return { error: 'Score is not realistic' };
   }
 
