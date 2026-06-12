@@ -28,13 +28,17 @@ function safeEqual(left, right) {
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function createGameToken(now = Date.now()) {
-  const payload = {
+export function createGameSession(now = Date.now()) {
+  const session = {
     iat: now,
     sid: crypto.randomBytes(16).toString('base64url')
   };
-  const encodedPayload = base64url(JSON.stringify(payload));
-  return `${encodedPayload}.${sign(encodedPayload)}`;
+  const encodedPayload = base64url(JSON.stringify(session));
+  return { session, token: `${encodedPayload}.${sign(encodedPayload)}` };
+}
+
+export function createGameToken(now = Date.now()) {
+  return createGameSession(now).token;
 }
 
 export function verifyGameToken(token, now = Date.now()) {

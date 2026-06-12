@@ -1,12 +1,15 @@
-import postgres from 'postgres';
+import { ensureSecurityTables, sql } from './db.js';
 import { verifyGameToken } from './session-token.js';
 
 const MAX_SCORES = 1500;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 5;
+const DB_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const DB_RATE_LIMIT_MAX = 8;
+const NAME_COOLDOWN_MS = 10 * 1000;
 const MIN_REALISTIC_TIME_MS = 700;
-const SCORE_SUBMIT_GRACE_MS = 5000;
-const MAX_FINISHED_WAIT_MS = 2 * 60 * 1000;
+const SCORE_SUBMIT_GRACE_MS = 2500;
+const MAX_FINISHED_WAIT_MS = 30 * 1000;
 const recentSubmissions = new Map();
 const NAME_RE = /^[A-Z0-9 _.-]{1,8}$/;
 const BANNED = [
@@ -17,10 +20,6 @@ const BANNED = [
   'fagget','faget','dyke','dike','tranny','tranni','retard','hitler','heil','nazi',
   'naazi','kkk','kkklux'
 ].map(normalizeStr);
-
-const sql = process.env.SUPABASE_DB_URL
-  ? postgres(process.env.SUPABASE_DB_URL, { max: 1, ssl: 'require' })
-  : null;
 
 function isScoreRealismConstraintError(error) {
   return error?.constraint_name === 'scores_realistic_rate_check'
@@ -83,6 +82,42 @@ function isRateLimited(req) {
   return false;
 }
 
+async function isDatabaseRateLimited(req, name) {
+  await ensureSecurityTables();
+  const ip = clientIp(req);
+  const normalizedName = normalizeStr(name) || 'anon';
+  const ipCutoff = new Date(Date.now() - DB_RATE_LIMIT_WINDOW_MS);
+  const nameCutoff = new Date(Date.now() - NAME_COOLDOWN_MS);
+
+  await sql`
+    delete from public.score_attempts
+    where created_at < now() - interval '1 day'
+  `;
+
+  const [ipWindow] = await sql`
+    select count(*)::int as count
+    from public.score_attempts
+    where ip = ${ip}
+      and created_at > ${ipCutoff}
+  `;
+  if ((ipWindow?.count || 0) >= DB_RATE_LIMIT_MAX) return true;
+
+  const [recentName] = await sql`
+    select 1
+    from public.score_attempts
+    where normalized_name = ${normalizedName}
+      and created_at > ${nameCutoff}
+    limit 1
+  `;
+  if (recentName) return true;
+
+  await sql`
+    insert into public.score_attempts (ip, name, normalized_name)
+    values (${ip}, ${name}, ${normalizedName})
+  `;
+  return false;
+}
+
 function validateScore(body) {
   if (typeof body === 'string') {
     try {
@@ -127,7 +162,20 @@ function validateScore(body) {
     return { error: 'Game session expired' };
   }
 
-  return { score: { name, clicks, timeMs } };
+  return { score: { name, clicks, timeMs }, session };
+}
+
+async function consumeGameSession(tx, session, req) {
+  const rows = await tx`
+    update public.game_sessions
+    set used_at = now(),
+        used_ip = ${clientIp(req)}
+    where sid = ${session.sid}
+      and used_at is null
+      and issued_at > now() - interval '15 minutes'
+    returning sid
+  `;
+  return rows.length > 0;
 }
 
 async function getScores(req, res) {
@@ -169,8 +217,18 @@ async function addScore(req, res) {
     return;
   }
 
+  if (await isDatabaseRateLimited(req, validation.score.name)) {
+    send(res, 429, { error: 'Too many submissions' });
+    return;
+  }
+
   try {
     const saved = await sql.begin(async (tx) => {
+      const sessionConsumed = await consumeGameSession(tx, validation.session, req);
+      if (!sessionConsumed) {
+        return 'invalid-session';
+      }
+
       const existingRows = await tx`
         select clicks, time_ms
         from public.scores
@@ -181,7 +239,7 @@ async function addScore(req, res) {
       const currentBest = existingRows[0];
 
       if (!isBetterScore(validation.score, currentBest)) {
-        return false;
+        return 'kept';
       }
 
       await tx`
@@ -192,10 +250,15 @@ async function addScore(req, res) {
         insert into public.scores (name, clicks, time_ms)
         values (${validation.score.name}, ${validation.score.clicks}, ${validation.score.timeMs})
       `;
-      return true;
+      return 'saved';
     });
 
-    if (!saved) {
+    if (saved === 'invalid-session') {
+      send(res, 400, { error: 'Invalid game session' });
+      return;
+    }
+
+    if (saved === 'kept') {
       send(res, 200, { ok: true, kept: true });
       return;
     }
