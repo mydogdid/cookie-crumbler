@@ -42,6 +42,10 @@ function isClean(name) {
   return !norm.startsWith('davide') && !BANNED.some((word) => norm.includes(word));
 }
 
+function isVisibleScoreName(name) {
+  return !normalizeStr(name).startsWith('davide');
+}
+
 function isBetterScore(score, current) {
   if (!current) return true;
   if (score.timeMs !== current.time_ms) return score.timeMs < current.time_ms;
@@ -132,12 +136,18 @@ async function getScores(req, res) {
     from (
       select distinct on (name) name, clicks, time_ms
       from public.scores
+      where regexp_replace(
+        translate(lower(name), '103@$547+', 'ioeassatt'),
+        '[^a-z]',
+        '',
+        'g'
+      ) not like 'davide%'
       order by name, time_ms asc, clicks asc
     ) best_by_name
     order by time_ms asc, clicks asc
     limit ${MAX_SCORES}
   `;
-  send(res, 200, { scores: rows });
+  send(res, 200, { scores: rows.filter((score) => isVisibleScoreName(score.name)) });
 }
 
 async function addScore(req, res) {
